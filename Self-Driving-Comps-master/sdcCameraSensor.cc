@@ -78,24 +78,44 @@ void sdcCameraSensor::OnUpdate() {
 
 	Rect ROI = cv::Rect(0, image.rows/2, image.cols, image.rows/2);
 	Mat imageROI = image(ROI);
-/*
+
 	// Canny algorithm for edge dectection
 	Mat contours, contours_thresh;
 	Canny(imageROI,contours,50,150);
+	/*
 	threshold(contours,contours_thresh,127,255, THRESH_BINARY);
+
 
 	Mat imageGray;
 	Mat imageInv = Mat(imageROI.rows, imageROI.cols, CV_8UC1, Scalar(0));
 	cvtColor(imageROI,imageGray,CV_BGR2GRAY);
-	adaptiveThreshold(imageGray,imageInv, 255,CV_ADAPTIVE_THRESH_MEAN_C,CV_THRESH_BINARY,201, -20 );
-*/
-// BEGIN STRAIGHT LANE DETECTION
-/*
-	// Hough Transform detects lines within the edge map, stores result in lines.
-	float PI = 3.14159;
-	std::vector<Vec2f> lines;
-	HoughLines(contours,lines,1,PI/180, 75);
+	adaptiveThreshold(imageGray,imageInv, 255,CV_ADAPTIVE_THRESH_MEAN_C,CV_THRESH_BINARY,201, -20 );*/
 
+// BEGIN STRAIGHT LANE DETECTION
+
+	// Hough Transform detects lines within the edge map, stores result in lines.
+	//float PI = 3.14159;
+	std::vector<Vec2f> lines;
+	HoughLines(contours,lines,1,CV_PI/180, 200);
+	std::cout << "the number of lines is " << lines.size() << std::endl;
+	for( size_t i = 0; i < lines.size(); i++ )
+  {
+     float rho = lines[i][0], theta = lines[i][1];
+     Point pt1, pt2;
+     double a = cos(theta), b = sin(theta);
+     double x0 = a*rho, y0 = b*rho;
+     pt1.x = cvRound(x0 + 1000*(-b));
+     pt1.y = cvRound(y0 + 1000*(a));
+     pt2.x = cvRound(x0 - 1000*(-b));
+     pt2.y = cvRound(y0 - 1000*(a));
+     line( imageROI, pt1, pt2, Scalar(255,0,0), 3, CV_AA);
+  }
+
+	// Display results to GUI
+	namedWindow("Camera View", WINDOW_AUTOSIZE);
+	imshow("Camera View", imageROI);
+	waitKey(4);
+	/*
 	std::vector<Vec2f>::const_iterator it = lines.begin();
 
 	Vec2f left_lane_marker = Vec2f(0.0, PI);
@@ -428,8 +448,5 @@ void sdcCameraSensor::OnUpdate() {
 
 // END LCF LANE DETECTION /////////////////////////////
 */
-	// Display results to GUI
-	namedWindow("Camera View", WINDOW_AUTOSIZE);
-	imshow("Camera View", image);
-	waitKey(4);
+
 }
