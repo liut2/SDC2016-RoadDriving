@@ -12,6 +12,10 @@
       <uri>model://sun</uri>
     </include>
 
+    <include>
+      <uri>/models/curved_road</uri>
+      <pose>10 0 0 0 0 0</pose>
+    </include>
 
 
     <include>
@@ -53,7 +57,7 @@
       </link>
     </model>
 
-    <model name='road_2_0_1'>
+    <!-- <model name='road_2_0_1'>
       <pose>50 1 0.05 0 0 0</pose>
       <static>true</static>
       <link name="link">
@@ -80,7 +84,7 @@
         </material>
       </visual>
     </link>
-    </model>
+    </model> -->
 
   </world>
 </sdf>

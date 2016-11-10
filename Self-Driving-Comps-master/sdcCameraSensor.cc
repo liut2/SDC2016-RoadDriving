@@ -78,10 +78,11 @@ void sdcCameraSensor::OnUpdate() {
 
 	Rect ROI = cv::Rect(0, image.rows/2, image.cols, image.rows/2);
 	Mat imageROI = image(ROI);
+	blur(imageROI, imageROI, Size(3,3));
 
 	// Canny algorithm for edge dectection
-	Mat contours, contours_thresh;
-	Canny(imageROI,contours,50,150);
+	//Mat contours, contours_thresh;
+	//Canny(imageROI,contours,50,150);
 	/*
 	threshold(contours,contours_thresh,127,255, THRESH_BINARY);
 
@@ -95,21 +96,69 @@ void sdcCameraSensor::OnUpdate() {
 
 	// Hough Transform detects lines within the edge map, stores result in lines.
 	//float PI = 3.14159;
-	std::vector<Vec2f> lines;
-	HoughLines(contours,lines,1,CV_PI/180, 200);
-	std::cout << "the number of lines is " << lines.size() << std::endl;
-	for( size_t i = 0; i < lines.size(); i++ )
-  {
-     float rho = lines[i][0], theta = lines[i][1];
-     Point pt1, pt2;
-     double a = cos(theta), b = sin(theta);
-     double x0 = a*rho, y0 = b*rho;
-     pt1.x = cvRound(x0 + 1000*(-b));
-     pt1.y = cvRound(y0 + 1000*(a));
-     pt2.x = cvRound(x0 - 1000*(-b));
-     pt2.y = cvRound(y0 - 1000*(a));
-     line( imageROI, pt1, pt2, Scalar(255,0,0), 3, CV_AA);
-  }
+	double col = imageROI.cols;
+	double row = imageROI.rows;
+	Rect section1 = cv::Rect(0, 0, col, (1.0/15)*row);
+	Rect section2 = cv::Rect(0, row/15.0, col, (2.0/15)*row);
+	Rect section3 = cv::Rect(0, (3.0/15)*row, col, (3.0/15)*row);
+	Rect section4 = cv::Rect(0, (6.0/15)*row, col, (4.0/15)*row);
+	Rect section5 = cv::Rect(0, (10.0/15)*row, col, (5.0/15)*row);
+
+	std::vector<Rect> sections;
+	sections.push_back(section1);
+	sections.push_back(section2);
+	sections.push_back(section3);
+	sections.push_back(section4);
+	sections.push_back(section5);
+
+
+	int colors[5][3] = {{255, 0, 0}, {255, 255, 0}, {0, 255, 0}, {0, 0, 255}, {255, 0, 255}};
+	double offset[5] = {0, 1.0, 3.0, 6.0, 10.0};
+
+
+	/*
+  Mat sectionImage = imageROI(section4);
+	//Mat contours;
+	blur(sectionImage, sectionImage, Size(3,3));
+	Canny(sectionImage,sectionImage,50,150, 3);
+	vector<Vec4i> lines;
+ 	HoughLinesP(sectionImage, lines, 1, CV_PI/180, 50, 50, 10 );
+ 	for( size_t i = 0; i < lines.size(); i++ )
+ 	{
+	 	Vec4i l = lines[i];
+	 	line( imageROI, Point(l[0], l[1] + offset[3]*row/15), Point(l[2], l[3] + offset[3]*row/15), Scalar(0,0,255), 3, CV_AA);
+ 	}
+	*/
+	/*
+	Point a1, a2, b1, b2, c1, c2, d1, d2;
+	a1.x = b1.x = c1.x = d1.x = 0;
+	a2.x = b2.x = c2.x = d2.x = col;
+	a1.y = a2.y = row/15.0;
+	b1.y = b2.y = (3.0/15)*row;
+	c1.y = c2.y = (6.0/15)*row;
+	d1.y = d2.y = (10.0/15)*row;
+
+	line(imageROI, a1, a2, Scalar(255, 0, 0), 3, CV_AA);
+	line(imageROI, b1, b2, Scalar(255, 0, 0), 3, CV_AA);
+	line(imageROI, c1, c2, Scalar(255, 0, 0), 3, CV_AA);
+	line(imageROI, d1, d2, Scalar(255, 0, 0), 3, CV_AA);*/
+
+	for(size_t i = 0; i < 5; i++) {
+		Rect section;
+		section = sections[i];
+		Mat sectionImage = imageROI(section);
+
+		Canny(sectionImage,sectionImage,50,150, 3);
+
+		vector<Vec4i> lines;
+ 		HoughLinesP(sectionImage, lines, 1, CV_PI/180, 30, 30, 10);
+		std::cout << "number of lines " << lines.size() << "     ***********"<<std::endl;
+ 		for( size_t j = 0; j < lines.size(); j++ )
+ 		{
+	 		Vec4i l = lines[j];
+	 		line(imageROI, Point(l[0], l[1] + offset[i]*row/15), Point(l[2], l[3] + offset[i]*row/15), Scalar(colors[i][0],colors[i][1],colors[i][2]), 3, CV_AA);
+ 		}
+	}
 
 	// Display results to GUI
 	namedWindow("Camera View", WINDOW_AUTOSIZE);

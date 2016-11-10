@@ -78,7 +78,7 @@ std::vector<sdcWaypoint> WAYPOINT_VEC;
  */
 void sdcCar::Drive()
 {
-    std::cout << "car model is driving" << std::endl;
+    //std::cout << "car model is driving" << std::endl;
 
 
 
@@ -94,7 +94,7 @@ void sdcCar::Drive()
  * to turn and by how much, as well as turning the actual wheel
  */
 void sdcCar::MatchTargetDirection(){
-    std::cout << "match target direction" << std::endl;
+    //std::cout << "match target direction" << std::endl;
     sdcAngle directionAngleChange = this->GetDirection() - this->targetDirection;
     // If the car needs to turn, set the target steering amount
     if (!directionAngleChange.WithinMargin(DIRECTION_MARGIN_OF_ERROR)) {
@@ -124,7 +124,7 @@ void sdcCar::MatchTargetDirection(){
  */
 void sdcCar::MatchTargetSpeed(){
     // Invert all the values if the car should be moving backwards
-    std::cout << "match target speed" << std::endl;
+    //std::cout << "match target speed" << std::endl;
     int dirConst = this->reversing ? -1 : 1;
 
     // If the car is moving the wrong direction or slower than the target speed, press on the gas
@@ -149,7 +149,7 @@ void sdcCar::MatchTargetSpeed(){
  * as possible to the midpoint.
  */
 void sdcCar::LanedDriving() {
-    std::cout << "lane driving" << std::endl;
+    //std::cout << "lane driving" << std::endl;
     int lanePos = sdcSensorData::LanePosition();
     this->SetTurningLimit(sdcSensorData::GetNewSteeringMagnitude());
     if (!(lanePos > 320 || lanePos < -320)) {
@@ -264,7 +264,7 @@ void sdcCar::SetTurningLimit(double limit){
 void sdcCar::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
 {
     // Store the model and chassis of the car for later access
-    std::cout << "load the car model" << std::endl;
+    //::cout << "load the car model" << std::endl;
     this->model = _model;
     this->chassis = this->model->GetLink(_sdf->Get<std::string>("chassis"));
 
@@ -308,7 +308,7 @@ void sdcCar::Init()
  */
 void sdcCar::OnUpdate()
 {
-    std::cout << "on update the car model" << std::endl;
+    ///std::cout << "on update the car model" << std::endl;
     // Get the current velocity of the car
     this->velocity = this->chassis->GetWorldLinearVel();
     // Get the cars current position
@@ -318,7 +318,7 @@ void sdcCar::OnUpdate()
     // Get the cars current rotation
     this->yaw = sdcSensorData::GetYaw();
 
-    
+
     // Call our Drive function, which is the brain for the car
     this->Drive();
 
@@ -398,7 +398,7 @@ void sdcCar::OnUpdate()
  * when the car is updating
  */
 sdcCar::sdcCar(){
-    std::cout << "car model Constructor" << std::endl;
+    //std::cout << "car model Constructor" << std::endl;
     this->joints.resize(4);
 
     // Physics variables
