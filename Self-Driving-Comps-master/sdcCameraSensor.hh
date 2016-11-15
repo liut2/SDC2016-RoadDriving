@@ -20,7 +20,13 @@ namespace gazebo
     {
         public: virtual void Load(sensors::SensorPtr _sensor, sdf::ElementPtr /*_sdf*/);
         public: void OnUpdate();
-
+        public: double getSlope(cv::Vec4i l);
+        public: cv::Point getIntersectionPoint(cv::Vec4i l1, cv::Vec4i l2);
+        public: double getPointLineDist(cv::Point p1, cv::Vec4i l1);
+        public: bool isTooClose(cv::Vec4i leftLine, cv::Vec4i rightLine, int i, double row, double col);
+        public: cv::Vec4i extendLine(cv::Vec4i line, cv::Vec4i topHorizontal, cv::Vec4i bottomHorizontal);
+        public: cv::Vec4i createLine(double x1, double y1, double x2, double y2);
+        public: double getNewTurningAngle(cv::Vec4i midLine);
         private: sensors::MultiCameraSensorPtr parentSensor;
         private: event::ConnectionPtr updateConnection;
     };

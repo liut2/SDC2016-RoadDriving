@@ -86,7 +86,7 @@ void sdcCar::Drive()
     this->MatchTargetDirection();
     // Attempts to match the target speed
     this->MatchTargetSpeed();
-
+    //this->LanedDriving();
 }
 
 /*
@@ -95,6 +95,7 @@ void sdcCar::Drive()
  */
 void sdcCar::MatchTargetDirection(){
     //std::cout << "match target direction" << std::endl;
+    /*
     sdcAngle directionAngleChange = this->GetDirection() - this->targetDirection;
     // If the car needs to turn, set the target steering amount
     if (!directionAngleChange.WithinMargin(DIRECTION_MARGIN_OF_ERROR)) {
@@ -117,6 +118,8 @@ void sdcCar::MatchTargetDirection(){
             this->steeringAmount = this->steeringAmount - STEERING_ADJUSTMENT_RATE;
         }
     }
+    */
+    this->steeringAmount = sdcSensorData::GetNewSteeringMagnitude();
 }
 
 /*

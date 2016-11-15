@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "sdcSensorData.hh"
-
 using namespace gazebo;
 
 // Angle information for each lidar
@@ -124,13 +123,16 @@ int sdcSensorData::LanePosition() {
     return lanePosition;
 }
 
+/*
+   Main logic to make the car turn
+*/
 void sdcSensorData::UpdateSteeringMagnitude(double steerMag) {
-    std::cout << "set steering maganitude" << std::endl;
+    //std::cout << "set steering maganitude" << std::endl;
     newSteerMagnitude = steerMag;
 }
 
 double sdcSensorData::GetNewSteeringMagnitude() {
-    std::cout << "get steering maganitude" << std::endl;
+    //std::cout << "get steering maganitude" << std::endl;
     return newSteerMagnitude;
 }
 

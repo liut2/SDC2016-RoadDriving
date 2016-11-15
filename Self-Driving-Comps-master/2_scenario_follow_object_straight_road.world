@@ -20,14 +20,14 @@
 
     <include>
         <uri>/models/sdcCar</uri>
-        <!-- <pose>2 9 0.5 0 0 0</pose> -->
+        <pose>-10 2 0 0 0 0</pose>
     </include>
 
 
     <model name='ground_plane'>
       <static>1</static>
       <link name='link'>
-        <pose> 50 10 0 0 0 0 </pose>
+        <pose> 50 100 0 0 0 0 </pose>
         <collision name='collision'>
           <geometry>
             <plane>
@@ -46,8 +46,8 @@
           </geometry>
           <material>
             <script>
-              <uri>file://media/materials/scripts/gazebo.material</uri>
-              <name>Gazebo/Grass</name>
+              <!-- <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Grass</name> -->
             </script>
           </material>
         </visual>

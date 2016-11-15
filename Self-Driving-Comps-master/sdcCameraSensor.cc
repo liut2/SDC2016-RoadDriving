@@ -20,6 +20,7 @@
 #include <opencv2/opencv.hpp>
 #include "sdcCameraSensor.hh"
 #include "fadiff.h"
+#include <math.h>
 
 using namespace fadbad;
 using namespace gazebo;
@@ -35,6 +36,9 @@ sensors::MultiCameraSensorPtr parentSensor;
 // Cascade Classifier information using CPU
 CascadeClassifier cpu_stop_sign;
 String cascade_file_path = "OpenCV/haarcascade_stop.xml";
+
+// some constants
+double MidPointHeight[5] = {0.5,2.0,4.5,8.0,12.5};
 
 //FADBAD-wrapped forward differentiation for gradient calculations
 F<double> delG(const F<double>& x, const F<double>& y) {
@@ -114,7 +118,7 @@ void sdcCameraSensor::OnUpdate() {
 
 	int colors[5][3] = {{255, 0, 0}, {255, 255, 0}, {0, 255, 0}, {0, 0, 255}, {255, 0, 255}};
 	double offset[5] = {0, 1.0, 3.0, 6.0, 10.0};
-
+	double horizons[5] = {1.0, 3.0, 6.0, 10.0, 15.0};
 
 	/*
   Mat sectionImage = imageROI(section4);
@@ -143,21 +147,99 @@ void sdcCameraSensor::OnUpdate() {
 	line(imageROI, c1, c2, Scalar(255, 0, 0), 3, CV_AA);
 	line(imageROI, d1, d2, Scalar(255, 0, 0), 3, CV_AA);*/
 
+	Vec4i tempPreviousLeftLine;
+	tempPreviousLeftLine[0] = 0;
+	tempPreviousLeftLine[1] = 0;
+	tempPreviousLeftLine[2] = 0;
+	tempPreviousLeftLine[3] = row;
+	Vec4i previousLeftLine = tempPreviousLeftLine;
+
+	Vec4i tempPreviousRightLine;
+	tempPreviousRightLine[0] = col;
+	tempPreviousRightLine[1] = 0;
+	tempPreviousRightLine[2] = col;
+	tempPreviousRightLine[3] = row;
+	Vec4i previousRightLine = tempPreviousRightLine;
+
+
 	for(size_t i = 0; i < 5; i++) {
 		Rect section;
 		section = sections[i];
 		Mat sectionImage = imageROI(section);
 
+
 		Canny(sectionImage,sectionImage,50,150, 3);
 
 		vector<Vec4i> lines;
  		HoughLinesP(sectionImage, lines, 1, CV_PI/180, 30, 30, 10);
-		std::cout << "number of lines " << lines.size() << "     ***********"<<std::endl;
+		//std::cout << "number of lines " << lines.size() << "     ***********"<<std::endl;
+		Vec4i leftLine, rightLine;
+		double leftMinDistance, rightMinDistance;
+		//these two points are the id-height points of each section - for use in
+		//determining the line we will use for the vanishing point
+		Point leftMidPoint = Point(0,MidPointHeight[i]*row/15);
+		Point rightMidPoint = Point(col,MidPointHeight[i]*row/15);
+
  		for( size_t j = 0; j < lines.size(); j++ )
  		{
-	 		Vec4i l = lines[j];
-	 		line(imageROI, Point(l[0], l[1] + offset[i]*row/15), Point(l[2], l[3] + offset[i]*row/15), Scalar(colors[i][0],colors[i][1],colors[i][2]), 3, CV_AA);
+
+			Vec4i l = lines[j];
+			// calculate the slope of current line
+			double tempLeftDistance = getPointLineDist(leftMidPoint,l);
+			double tempRightDistance = getPointLineDist(rightMidPoint,l);
+			if(j == 0){
+				leftMinDistance = tempLeftDistance;
+				rightMinDistance = tempRightDistance;
+				leftLine = l;
+				rightLine = l;
+			}else{
+				if(tempLeftDistance < leftMinDistance){
+					leftMinDistance = tempLeftDistance;
+					leftLine = l;
+				}
+				if (tempRightDistance < rightMinDistance) {
+					rightMinDistance = tempRightDistance;
+					rightLine = l;
+				}
+			}
+	 		//line(imageROI, Point(l[0], l[1] + offset[i]*row/15), Point(l[2], l[3] + offset[i]*row/15), Scalar(colors[i][0],colors[i][1],colors[i][2]), 3, CV_AA);
  		}
+
+		// edge case checking: case1: 0 or 1 line detected; case2: two lines exsist on the same side
+		if ((lines.size() == 0 || lines.size() == 1 || isTooClose(leftLine, rightLine, i, row, col)) && (i != 0)) {
+			if (previousLeftLine != tempPreviousLeftLine) {
+				leftLine = extendLine(previousLeftLine, createLine(0, horizons[i-1]*row/15, col, horizons[i-1]*row/15),
+				createLine(0, horizons[i]*row/15, col, horizons[i]*row/15));
+			}
+			if (previousRightLine != tempPreviousRightLine) {
+				rightLine = extendLine(previousRightLine, createLine(0, horizons[i-1]*row/15, col, horizons[i-1]*row/15),
+				createLine(0, horizons[i]*row/15, col, horizons[i]*row/15));
+			}
+		}
+
+		previousLeftLine = leftLine;
+		previousRightLine = rightLine;
+		// construct the horizontal line at the bottom of each section
+		Vec4i horizon;
+		horizon[0] = 0;
+		horizon[1] = horizons[i]*row/15;
+		horizon[2] = col;
+		horizon[3] = horizons[i]*row/15;
+		// get intersections with section horizons
+		Point leftEnd = getIntersectionPoint(leftLine, horizon);
+		Point rightEnd = getIntersectionPoint(rightLine, horizon);
+		// get the mid point on horizon
+		Point midPoint = Point((leftEnd.x + rightEnd.x)/2, leftEnd.y);
+		Point vanishPoint = getIntersectionPoint(leftLine, rightLine);
+		if (i == 4) {
+			line(imageROI, Point(vanishPoint.x, vanishPoint.y), Point(midPoint.x, midPoint.y + offset[i]*row/15), Scalar(colors[i][0],colors[i][1],colors[i][2]), 3, CV_AA);
+		}
+		// update the turn angle
+		double newAngle = getNewTurningAngle(createLine(vanishPoint.x, vanishPoint.y, midPoint.x, midPoint.y + offset[i]*row/15));
+		sdcSensorData::UpdateSteeringMagnitude(newAngle);
+		line(imageROI, Point(leftLine[0], leftLine[1] + offset[i]*row/15), Point(leftLine[2], leftLine[3] + offset[i]*row/15), Scalar(colors[i][0],colors[i][1],colors[i][2]), 3, CV_AA);
+		line(imageROI, Point(rightLine[0], rightLine[1] + offset[i]*row/15), Point(rightLine[2], rightLine[3] + offset[i]*row/15), Scalar(colors[i][0],colors[i][1],colors[i][2]), 3, CV_AA);
+
 	}
 
 	// Display results to GUI
@@ -498,4 +580,121 @@ void sdcCameraSensor::OnUpdate() {
 // END LCF LANE DETECTION /////////////////////////////
 */
 
+
+
 }
+
+/*
+Fuction to get the slop of the input line
+*/
+double sdcCameraSensor::getSlope(cv::Vec4i l){
+	double vertSlope = 1000000000.00;
+	if(l[2]-l[0] == 0){
+		return vertSlope;
+	}
+	else{
+		return ((l[3] - l[1])*1.0)/((l[2]-l[0])*1.0);
+	}
+}
+
+Point sdcCameraSensor::getIntersectionPoint(cv::Vec4i l1, cv::Vec4i l2){
+	double l1Slope = getSlope(l1);
+	double l2Slope = getSlope(l2);
+	double l1intercept = l1[1] - (l1[0]*l1Slope);
+	double l2intercept = l2[1] - (l2[0]*l2Slope);
+	//
+	double xVal, yVal;
+	if (l1Slope - l2Slope == 0){
+		xVal = -1.0;
+		yVal = -1.0;
+	}
+	else{
+		xVal = (l2intercept - l1intercept)/(l1Slope - l2Slope);
+		yVal = (l1Slope * xVal) + l1intercept;
+	}
+	return Point(std::round(xVal), std::round(yVal));
+}
+
+double sdcCameraSensor::getPointLineDist(cv::Point p1, cv::Vec4i l1){
+	double l1Slope = getSlope(l1);
+	double l1intercept = l1[1] - (l1[0]*l1Slope);
+	return std::abs((l1Slope*(p1.x) + (-1)*(p1.y) + l1intercept))/sqrt(pow(l1Slope,2) +(1));
+}
+
+
+bool sdcCameraSensor::isTooClose(cv::Vec4i leftLine, cv::Vec4i rightLine, int i, double row, double col) {
+	/*
+	double leftDis1 = getPointLineDist(Point(0,MidPointHeight[i]*row/15), leftLine);
+	double leftDis2 = getPointLineDist(Point(0,MidPointHeight[i]*row/15), rightLine);
+	double rightDis1 = getPointLineDist(Point(col,MidPointHeight[i]*row/15), leftLine);
+	double rightDis2 = getPointLineDist(Point(col,MidPointHeight[i]*row/15), rightLine);
+	double threshold = col / 16;
+	if ((leftDis1 - leftDis2 <= threshold) || (rightDis1 - rightDis2 <= threshold)) {
+		return true;
+	}
+	return false;
+	*/
+	double threshold = col / 8;
+	double dis1 = std::abs(leftLine[0] - rightLine[0]);
+	double dis2 = std::abs(leftLine[2] - rightLine[2]);
+	double larger = dis1 > dis2? dis1 : dis2;
+	if (larger < threshold) {
+		return true;
+	}
+	return false;
+}
+
+cv::Vec4i sdcCameraSensor::extendLine(cv::Vec4i line, cv::Vec4i topHorizontal, cv::Vec4i bottomHorizontal) {
+	Point point1 = getIntersectionPoint(line, topHorizontal);
+	Point point2 = getIntersectionPoint(line, bottomHorizontal);
+	Vec4i extended = createLine(point1.x, point1.y, point2.x, point2.y);
+	return extended;
+ }
+
+ cv::Vec4i sdcCameraSensor::createLine(double x1, double y1, double x2, double y2) {
+	 Vec4i line;
+	 line[0] = x1;
+	 line[1] = y1;
+	 line[2] = x2;
+	 line[3] = y2;
+	 return line;
+ }
+
+/*
+   the main logic to calculate the new turning angle
+*/
+ double sdcCameraSensor::getNewTurningAngle(cv::Vec4i midLine) {
+	 double result = 0;
+	 std::cout << "in newturningangle" << std::endl;
+	 if(midLine[1] - midLine[3] == 0) {
+		 std::cout << "Vertical line" << std::endl;
+		 result = 0;
+	 }else{
+		 std::cout << "In else" << std::endl;
+
+		 double tempVal = (std::abs(midLine[0]-midLine[2]))/(std::abs(midLine[1] - midLine[3]));
+		 double atanTemp = atan(tempVal);
+		 std::cout << "arctan: " << std::endl;
+		 std::cout << atanTemp << std::endl;
+		 std::cout <<" tempval" << std::endl;
+		 std::cout << tempVal << std::endl;
+		 if(-1.57 > atanTemp || atanTemp > 1.57) {
+			 std::cout << "Bad range of angles" << std::endl;
+			 //math::Vector3 velocity = this->velocity;
+	     //return atan2(velocity.y, velocity.x);
+			 result = 0;
+		 }
+		 if(getSlope(midLine) < 0){
+			 std::cout << "Turn left!" << std::endl;
+			 result = -atanTemp;
+		 }else
+		 {
+			 std::cout << "Turn right!" << std::endl;
+			 result = atanTemp;
+		 }
+	 }
+	 if(result < 1 && result > -1 ){
+		 return 0;
+	 }
+	 return 10*result;
+ }
