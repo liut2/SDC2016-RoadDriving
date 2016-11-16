@@ -233,10 +233,11 @@ void sdcCameraSensor::OnUpdate() {
 		Point vanishPoint = getIntersectionPoint(leftLine, rightLine);
 		if (i == 4) {
 			line(imageROI, Point(vanishPoint.x, vanishPoint.y), Point(midPoint.x, midPoint.y + offset[i]*row/15), Scalar(colors[i][0],colors[i][1],colors[i][2]), 3, CV_AA);
+			// update the turn angle
+			double newAngle = getNewTurningAngle(createLine(vanishPoint.x, vanishPoint.y, midPoint.x, midPoint.y + offset[i]*row/15));
+			sdcSensorData::UpdateSteeringMagnitude(newAngle);
 		}
-		// update the turn angle
-		double newAngle = getNewTurningAngle(createLine(vanishPoint.x, vanishPoint.y, midPoint.x, midPoint.y + offset[i]*row/15));
-		sdcSensorData::UpdateSteeringMagnitude(newAngle);
+
 		line(imageROI, Point(leftLine[0], leftLine[1] + offset[i]*row/15), Point(leftLine[2], leftLine[3] + offset[i]*row/15), Scalar(colors[i][0],colors[i][1],colors[i][2]), 3, CV_AA);
 		line(imageROI, Point(rightLine[0], rightLine[1] + offset[i]*row/15), Point(rightLine[2], rightLine[3] + offset[i]*row/15), Scalar(colors[i][0],colors[i][1],colors[i][2]), 3, CV_AA);
 
@@ -696,5 +697,6 @@ cv::Vec4i sdcCameraSensor::extendLine(cv::Vec4i line, cv::Vec4i topHorizontal, c
 	 if(result < 1 && result > -1 ){
 		 return 0;
 	 }
-	 return 10*result;
+	 //return 10*result;
+	 return 20*result;
  }
